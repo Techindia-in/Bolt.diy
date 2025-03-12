@@ -1,0 +1,23 @@
+# Dependency directories
+node_modules/
+
+# TypeScript output directory
+dist/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE/Editor folders
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db 

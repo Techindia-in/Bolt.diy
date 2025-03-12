@@ -27,11 +27,21 @@ services:
       - VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
+      - VITE_RUNNING_IN_DOCKER=true
+      - VITE_FILESERVER_URL=${VITE_FILESERVER_URL}
+      - VITE_FILESERVER_API_KEY=${FILESERVER_API_KEY:-bolt-fileserver-key}
+      - VITE_NODERUNNER_URL=${VITE_NODERUNNER_URL}
+      - VITE_NODERUNNER_API_KEY=${NODERUNNER_API_KEY:-bolt-noderunner-key}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     command: pnpm run dockerstart
     profiles:
       - production
+    depends_on:
+      fileserver:
+        condition: service_started
+      noderunner:
+        condition: service_started
 
   app-dev:
     image: bolt-ai:development
@@ -60,6 +70,11 @@ services:
       - VITE_LOG_LEVEL=${VITE_LOG_LEVEL:-debug}
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
+      - VITE_RUNNING_IN_DOCKER=true
+      - VITE_FILESERVER_URL=${VITE_FILESERVER_URL}
+      - VITE_FILESERVER_API_KEY=${FILESERVER_API_KEY:-bolt-fileserver-key}
+      - VITE_NODERUNNER_URL=${VITE_NODERUNNER_URL}
+      - VITE_NODERUNNER_API_KEY=${NODERUNNER_API_KEY:-bolt-noderunner-key}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     volumes:
@@ -72,6 +87,11 @@ services:
       - '5173:5173'
     command: pnpm run dev --host 0.0.0.0
     profiles: ['development', 'default']
+    depends_on:
+      fileserver:
+        condition: service_started
+      noderunner:
+        condition: service_started
 
   app-prebuild:
     image: ghcr.io/stackblitz-labs/bolt.diy:latest
@@ -85,8 +105,68 @@ services:
       - OLLAMA_API_BASE_URL=http://127.0.0.1:11434
       - DEFAULT_NUM_CTX=${DEFAULT_NUM_CTX:-32768}
       - RUNNING_IN_DOCKER=true
+      - VITE_RUNNING_IN_DOCKER=true
+      - VITE_FILESERVER_URL=${VITE_FILESERVER_URL}
+      - VITE_FILESERVER_API_KEY=${FILESERVER_API_KEY:-bolt-fileserver-key}
+      - VITE_NODERUNNER_URL=${VITE_NODERUNNER_URL}
+      - VITE_NODERUNNER_API_KEY=${NODERUNNER_API_KEY:-bolt-noderunner-key}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     command: pnpm run dockerstart
     profiles:
       - prebuilt
+    depends_on:
+      fileserver:
+        condition: service_started
+      noderunner:
+        condition: service_started
+
+  # TypeScript-based file system service
+  fileserver:
+    build:
+      context: ./fileserver
+      dockerfile: Dockerfile
+    volumes:
+      - type: volume
+        source: bolt-workspace
+        target: /app/workspace
+    environment:
+      - FILESERVER_PORT=3001
+      - FILESERVER_ROOT_DIR=/app/workspace
+      - FILESERVER_API_KEY=${FILESERVER_API_KEY:-bolt-fileserver-key}
+    ports:
+      - '3001:3001'
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3001/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    profiles: ['development', 'default', 'production']
+
+  # Node.js executor service
+  noderunner:
+    build:
+      context: ./noderunner
+      dockerfile: Dockerfile
+    volumes:
+      - type: volume
+        source: bolt-workspace
+        target: /app/workspace
+    environment:
+      - NODERUNNER_PORT=3002
+      - NODERUNNER_WORKSPACE_DIR=/app/workspace
+      - NODERUNNER_API_KEY=${NODERUNNER_API_KEY:-bolt-noderunner-key}
+    ports:
+      - '3002:3002'
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3002/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    profiles: ['development', 'default', 'production']
+
+volumes:
+  bolt-workspace:
+    driver: local

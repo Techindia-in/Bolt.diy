@@ -15,6 +15,7 @@ import globalStyles from './styles/index.scss?url';
 import xtermStyles from '@xterm/xterm/css/xterm.css?url';
 
 import 'virtual:uno.css';
+import { ReactProvider } from './providers/react-provider';
 
 export const links: LinksFunction = () => [
   {
@@ -96,8 +97,10 @@ export default function App() {
   }, []);
 
   return (
-    <Layout>
-      <Outlet />
-    </Layout>
+    <ReactProvider>
+      <Layout>
+        <Outlet />
+      </Layout>
+    </ReactProvider>
   );
 }

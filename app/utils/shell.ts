@@ -2,12 +2,17 @@ import type { WebContainer, WebContainerProcess } from '@webcontainer/api';
 import type { ITerminal } from '~/types/terminal';
 import { withResolvers } from './promises';
 import { atom } from 'nanostores';
+import { env } from '~/utils/env';
 
 export async function newShellProcess(webcontainer: WebContainer, terminal: ITerminal) {
   const args: string[] = [];
 
-  // we spawn a JSH process with a fallback cols and rows in case the process is not attached yet to a visible terminal
-  const process = await webcontainer.spawn('/bin/jsh', ['--osc', ...args], {
+  // Use appropriate shell based on the environment
+  const shellCommand = env.runningInDocker ? '/bin/bash' : '/bin/jsh';
+  const shellArgs = env.runningInDocker ? [] : ['--osc', ...args];
+
+  // we spawn a shell process with a fallback cols and rows in case the process is not attached yet to a visible terminal
+  const process = await webcontainer.spawn(shellCommand, shellArgs, {
     terminal: {
       cols: terminal.cols ?? 80,
       rows: terminal.rows ?? 15,
@@ -17,20 +22,26 @@ export async function newShellProcess(webcontainer: WebContainer, terminal: ITer
   const input = process.input.getWriter();
   const output = process.output;
 
-  const jshReady = withResolvers<void>();
+  const shellReady = withResolvers<void>();
 
   let isInteractive = false;
   output.pipeTo(
     new WritableStream({
       write(data) {
         if (!isInteractive) {
-          const [, osc] = data.match(/\x1b\]654;([^\x07]+)\x07/) || [];
-
-          if (osc === 'interactive') {
-            // wait until we see the interactive OSC
+          // For Docker mode, we'll consider the shell ready immediately
+          if (env.runningInDocker) {
             isInteractive = true;
+            shellReady.resolve();
+          } else {
+            // For WebContainer mode, wait for the OSC code
+            const [, osc] = data.match(/\x1b\]654;([^\x07]+)\x07/) || [];
 
-            jshReady.resolve();
+            if (osc === 'interactive') {
+              // wait until we see the interactive OSC
+              isInteractive = true;
+              shellReady.resolve();
+            }
           }
         }
 
@@ -47,7 +58,7 @@ export async function newShellProcess(webcontainer: WebContainer, terminal: ITer
     }
   });
 
-  await jshReady.promise;
+  await shellReady.promise;
 
   return process;
 }
@@ -141,8 +152,12 @@ export class BoltShell {
   async newBoltShellProcess(webcontainer: WebContainer, terminal: ITerminal) {
     const args: string[] = [];
 
-    // we spawn a JSH process with a fallback cols and rows in case the process is not attached yet to a visible terminal
-    const process = await webcontainer.spawn('/bin/jsh', ['--osc', ...args], {
+    // Use appropriate shell based on the environment
+    const shellCommand = env.runningInDocker ? '/bin/bash' : '/bin/jsh';
+    const shellArgs = env.runningInDocker ? [] : ['--osc', ...args];
+
+    // we spawn a shell process with a fallback cols and rows in case the process is not attached yet to a visible terminal
+    const process = await webcontainer.spawn(shellCommand, shellArgs, {
       terminal: {
         cols: terminal.cols ?? 80,
         rows: terminal.rows ?? 15,
@@ -154,20 +169,26 @@ export class BoltShell {
 
     const [internalOutput, terminalOutput] = process.output.tee();
 
-    const jshReady = withResolvers<void>();
+    const shellReady = withResolvers<void>();
 
     let isInteractive = false;
     terminalOutput.pipeTo(
       new WritableStream({
         write(data) {
           if (!isInteractive) {
-            const [, osc] = data.match(/\x1b\]654;([^\x07]+)\x07/) || [];
-
-            if (osc === 'interactive') {
-              // wait until we see the interactive OSC
+            // For Docker mode, we'll consider the shell ready immediately
+            if (env.runningInDocker) {
               isInteractive = true;
+              shellReady.resolve();
+            } else {
+              // For WebContainer mode, wait for the OSC code
+              const [, osc] = data.match(/\x1b\]654;([^\x07]+)\x07/) || [];
 
-              jshReady.resolve();
+              if (osc === 'interactive') {
+                // wait until we see the interactive OSC
+                isInteractive = true;
+                shellReady.resolve();
+              }
             }
           }
 
@@ -184,7 +205,7 @@ export class BoltShell {
       }
     });
 
-    await jshReady.promise;
+    await shellReady.promise;
 
     return { process, output: internalOutput };
   }

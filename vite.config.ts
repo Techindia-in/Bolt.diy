@@ -71,6 +71,49 @@ const getPackageJson = () => {
 const pkg = getPackageJson();
 const gitInfo = getGitInfo();
 
+/**
+ * Plugin to fix Node.js module imports in undici and other packages
+ */
+function fixNodeImportsPlugin() {
+  return {
+    name: 'fix-node-imports',
+    resolveId(id: string) {
+      // Handle node: protocol imports
+      if (id.startsWith('node:')) {
+        return { id: id.replace('node:', ''), external: false };
+      }
+      return null;
+    },
+    transform(code: string, id: string) {
+      // Fix specific undici module that uses node:util/types
+      if (id.includes('undici') && id.includes('body.js') && code.includes("require('node:util/types')")) {
+        return {
+          code: code.replace(
+            /const \{ isArrayBufferViewOutshot, isNodeWebStreamWritable, isBlobConstructor, isNodeByteStream, isDocumentFragmentNode \} = require\('node:util\/types'\)/,
+            `// Polyfill for node:util/types
+const isArrayBufferViewOutshot = (obj) => ArrayBuffer.isView(obj) && !(obj instanceof DataView);
+const isNodeWebStreamWritable = () => false;
+const isBlobConstructor = (obj) => obj === Blob;
+const isNodeByteStream = () => false;
+const isDocumentFragmentNode = () => false;`,
+          ),
+          map: null,
+        };
+      }
+
+      // Replace all node: imports with regular imports
+      if (code.includes("require('node:")) {
+        return {
+          code: code.replace(/require\('node:([^']+)'\)/g, "require('$1')"),
+          map: null,
+        };
+      }
+
+      return null;
+    },
+  };
+}
+
 export default defineConfig((config) => {
   return {
     define: {
@@ -91,6 +134,7 @@ export default defineConfig((config) => {
       __PKG_OPTIONAL_DEPENDENCIES: JSON.stringify(pkg.optionalDependencies),
       // Define global values
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+      global: 'globalThis',
     },
     build: {
       target: 'esnext',
@@ -108,36 +152,38 @@ export default defineConfig((config) => {
         define: {
           global: 'globalThis',
         },
+        platform: 'browser',
       },
+      // Force include dependencies that need pre-bundling
+      include: ['util', 'buffer', 'stream', 'events'],
+      // Exclude dependencies that are incompatible with the dep optimizer
+      exclude: ['undici', '@webcontainer/api'],
     },
     resolve: {
       alias: {
         buffer: 'vite-plugin-node-polyfills/polyfills/buffer',
+        'node:util/types': 'vite-plugin-node-polyfills/polyfills/util',
+        'node:util': 'vite-plugin-node-polyfills/polyfills/util',
+        'node:stream': 'vite-plugin-node-polyfills/polyfills/stream',
+        'node:events': 'vite-plugin-node-polyfills/polyfills/events',
       },
     },
     plugins: [
+      // Add the fix-node-imports plugin first to handle all node: imports
+      fixNodeImportsPlugin(),
+
       nodePolyfills({
-        include: ['buffer', 'process', 'util', 'stream'],
+        include: ['buffer', 'process', 'util', 'stream', 'events', 'string_decoder', 'assert'],
         globals: {
           Buffer: true,
           process: true,
           global: true,
         },
-        protocolImports: true,
+        protocolImports: true, // Make sure this is true to handle node: protocol
         // Exclude Node.js modules that shouldn't be polyfilled in Cloudflare
         exclude: ['child_process', 'fs', 'path'],
       }),
-      {
-        name: 'buffer-polyfill',
-        transform(code, id) {
-          if (id.includes('env.mjs')) {
-            return {
-              code: `import { Buffer } from 'buffer';\n${code}`,
-              map: null,
-            };
-          }
-        },
-      },
+
       config.mode !== 'test' && remixCloudflareDevProxy(),
       remixVitePlugin({
         future: {

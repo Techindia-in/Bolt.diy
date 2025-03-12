@@ -26,6 +26,7 @@ export class PreviewsStore {
   #refreshTimeouts = new Map<string, NodeJS.Timeout>();
   #REFRESH_DELAY = 300;
   #storageChannel: BroadcastChannel;
+  #cleanupFunctions: (() => void)[] = [];
 
   previews = atom<PreviewInfo[]>([]);
 
@@ -152,21 +153,37 @@ export class PreviewsStore {
     });
 
     try {
-      // Watch for file changes
+      // Watch for file changes - handle both WebContainer and Docker modes
       const watcher = await webcontainer.fs.watch('**/*', { persistent: true });
 
-      // Use the native watch events
-      (watcher as any).addEventListener('change', async () => {
+      // Setup a file change handler that works with both implementations
+      const handleFileChange = async () => {
         const previews = this.previews.get();
-
         for (const preview of previews) {
           const previewId = this.getPreviewId(preview.baseUrl);
-
           if (previewId) {
             this.broadcastFileChange(previewId);
           }
         }
-      });
+      };
+
+      // Check if the watcher has addEventListener (WebContainer) or not (Docker)
+      if (watcher && typeof (watcher as any).addEventListener === 'function') {
+        // WebContainer implementation
+        (watcher as any).addEventListener('change', handleFileChange);
+      } else {
+        // Docker implementation - the callback will be called directly by the watch method
+        // The file changes will be detected through the polling mechanism in FileSystemAdapter
+        console.log('[Preview] Using direct watcher callback (Docker mode)');
+
+        // Set up a manual polling as fallback if needed
+        const pollInterval = setInterval(handleFileChange, 5000);
+
+        // Store the interval for cleanup
+        this.#cleanupFunctions.push(() => {
+          clearInterval(pollInterval);
+        });
+      }
 
       // Watch for DOM changes that might affect storage
       if (typeof window !== 'undefined') {

@@ -1,6 +1,6 @@
 import type { WebContainer } from '@webcontainer/api';
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
-import { webcontainer as webcontainerPromise } from '~/lib/webcontainer';
+import { webcontainer as webcontainerPromise, type BoltContainer } from '~/lib/webcontainer';
 import git, { type GitAuth, type PromiseFsClient } from 'isomorphic-git';
 import http from 'isomorphic-git/http/web';
 import Cookies from 'js-cookie';
@@ -30,14 +30,14 @@ const saveGitAuth = (url: string, auth: GitAuth) => {
 
 export function useGit() {
   const [ready, setReady] = useState(false);
-  const [webcontainer, setWebcontainer] = useState<WebContainer>();
+  const [webcontainer, setWebcontainer] = useState<WebContainer | undefined>();
   const [fs, setFs] = useState<PromiseFsClient>();
   const fileData = useRef<Record<string, { data: any; encoding?: string }>>({});
   useEffect(() => {
     webcontainerPromise.then((container) => {
       fileData.current = {};
-      setWebcontainer(container);
-      setFs(getFs(container, fileData));
+      setWebcontainer(container as WebContainer);
+      setFs(getFs(container as WebContainer, fileData));
       setReady(true);
     });
   }, []);

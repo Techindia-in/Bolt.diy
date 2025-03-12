@@ -92,21 +92,52 @@ export function HeaderActionButtons({}: HeaderActionButtonsProps) {
       // Get all files recursively
       async function getAllFiles(dirPath: string): Promise<Record<string, string>> {
         const files: Record<string, string> = {};
-        const entries = await container.fs.readdir(dirPath, { withFileTypes: true });
+        try {
+          // Get directory entries
+          const entries = await container.fs.readdir(dirPath, { withFileTypes: true });
 
-        for (const entry of entries) {
-          const fullPath = path.join(dirPath, entry.name);
+          for (let entry of entries) {
+            const entryName = typeof entry === 'string' ? entry : entry.name;
+            const fullPath = path.join(dirPath, entryName);
 
-          if (entry.isFile()) {
-            const content = await container.fs.readFile(fullPath, 'utf-8');
+            let isDirectory = false;
 
-            // Remove /dist prefix from the path
-            const deployPath = fullPath.replace(buildPath, '');
-            files[deployPath] = content;
-          } else if (entry.isDirectory()) {
-            const subFiles = await getAllFiles(fullPath);
-            Object.assign(files, subFiles);
+            try {
+              // Try to determine if it's a directory by checking if it has isDirectory method
+              if (typeof entry === 'object' && entry !== null && typeof entry.isDirectory === 'function') {
+                isDirectory = entry.isDirectory();
+              } else {
+                // Fallback to try reading it as a directory
+                try {
+                  await container.fs.readdir(fullPath, { withFileTypes: true });
+                  isDirectory = true;
+                } catch (e) {
+                  isDirectory = false;
+                }
+              }
+
+              if (!isDirectory) {
+                // It's a file, read its content
+                const content = await container.fs.readFile(fullPath, 'utf-8');
+                const deployPath = fullPath.replace(buildPath, '');
+
+                // Ensure content is a string
+                if (typeof content === 'string') {
+                  files[deployPath] = content;
+                } else {
+                  files[deployPath] = content.toString();
+                }
+              } else {
+                // Recurse into subdirectories
+                const subFiles = await getAllFiles(fullPath);
+                Object.assign(files, subFiles);
+              }
+            } catch (error) {
+              console.error(`Error processing file ${fullPath}:`, error);
+            }
           }
+        } catch (error) {
+          console.error(`Error reading directory ${dirPath}:`, error);
         }
 
         return files;

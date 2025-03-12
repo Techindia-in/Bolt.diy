@@ -2,7 +2,8 @@ import { atom, map, type MapStore, type ReadableAtom, type WritableAtom } from '
 import type { EditorDocument, ScrollPosition } from '~/components/editor/codemirror/CodeMirrorEditor';
 import { ActionRunner } from '~/lib/runtime/action-runner';
 import type { ActionCallbackData, ArtifactCallbackData } from '~/lib/runtime/message-parser';
-import { webcontainer } from '~/lib/webcontainer';
+import { webcontainer, type BoltContainer } from '~/lib/webcontainer';
+import type { WebContainer } from '@webcontainer/api';
 import type { ITerminal } from '~/types/terminal';
 import { unreachable } from '~/utils/unreachable';
 import { EditorStore } from './editor';
@@ -36,10 +37,10 @@ type Artifacts = MapStore<Record<string, ArtifactState>>;
 export type WorkbenchViewType = 'code' | 'diff' | 'preview';
 
 export class WorkbenchStore {
-  #previewsStore = new PreviewsStore(webcontainer);
-  #filesStore = new FilesStore(webcontainer);
+  #previewsStore = new PreviewsStore(webcontainer as any);
+  #filesStore = new FilesStore(webcontainer as any);
   #editorStore = new EditorStore(this.#filesStore);
-  #terminalStore = new TerminalStore(webcontainer);
+  #terminalStore = new TerminalStore(webcontainer as any);
 
   #reloadedMessages = new Set<string>();
 
@@ -271,7 +272,7 @@ export class WorkbenchStore {
       closed: false,
       type,
       runner: new ActionRunner(
-        webcontainer,
+        webcontainer as any,
         () => this.boltTerminal,
         (alert) => {
           if (this.#reloadedMessages.has(messageId)) {

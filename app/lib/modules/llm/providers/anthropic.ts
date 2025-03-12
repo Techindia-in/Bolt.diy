@@ -17,29 +17,35 @@ export default class AnthropicProvider extends BaseProvider {
       name: 'claude-3-7-sonnet-20250219',
       label: 'Claude 3.7 Sonnet',
       provider: 'Anthropic',
-      maxTokenAllowed: 8000,
+      maxTokenAllowed: 8192,
     },
     {
       name: 'claude-3-5-sonnet-latest',
       label: 'Claude 3.5 Sonnet (new)',
       provider: 'Anthropic',
-      maxTokenAllowed: 8000,
+      maxTokenAllowed: 8192,
     },
     {
       name: 'claude-3-5-sonnet-20240620',
       label: 'Claude 3.5 Sonnet (old)',
       provider: 'Anthropic',
-      maxTokenAllowed: 8000,
+      maxTokenAllowed: 8192,
     },
     {
       name: 'claude-3-5-haiku-latest',
       label: 'Claude 3.5 Haiku (new)',
       provider: 'Anthropic',
-      maxTokenAllowed: 8000,
+      maxTokenAllowed: 8192,
     },
-    { name: 'claude-3-opus-latest', label: 'Claude 3 Opus', provider: 'Anthropic', maxTokenAllowed: 8000 },
-    { name: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet', provider: 'Anthropic', maxTokenAllowed: 8000 },
-    { name: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku', provider: 'Anthropic', maxTokenAllowed: 8000 },
+    {
+      name: 'claude-3-5-haiku-20241022',
+      label: 'Claude 3.5 Haiku 20241022',
+      provider: 'Anthropic',
+      maxTokenAllowed: 8192,
+    },
+    { name: 'claude-3-opus-latest', label: 'Claude 3 Opus', provider: 'Anthropic', maxTokenAllowed: 24576 },
+    { name: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet', provider: 'Anthropic', maxTokenAllowed: 8192 },
+    { name: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku', provider: 'Anthropic', maxTokenAllowed: 8192 },
   ];
 
   async getDynamicModels(
@@ -75,7 +81,13 @@ export default class AnthropicProvider extends BaseProvider {
       name: m.id,
       label: `${m.display_name}`,
       provider: this.name,
-      maxTokenAllowed: 32000,
+      maxTokenAllowed: m.id.includes('haiku')
+        ? 8192
+        : m.id.includes('sonnet')
+          ? 8192
+          : m.id.includes('opus')
+            ? 24576
+            : 8192,
     }));
   }
 

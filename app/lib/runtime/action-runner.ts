@@ -115,6 +115,8 @@ export class ActionRunner {
     const { actionId } = data;
     const action = this.actions.get()[actionId];
 
+    console.debug('runAction', { actionId, action });
+
     if (!action) {
       unreachable(`Action ${actionId} not found`);
     }
@@ -134,6 +136,7 @@ export class ActionRunner {
         return this.#executeAction(actionId, isStreaming);
       })
       .catch((error) => {
+        console.debug('runAction failed', { actionId, action });
         console.error('Action failed:', error);
       });
 
@@ -174,6 +177,8 @@ export class ActionRunner {
                 return;
               }
 
+              console.debug('start action failed', { actionId, action });
+
               this.#updateAction(actionId, { status: 'failed', error: 'Action failed' });
               logger.error(`[${action.type}]:Action failed\n\n`, err);
 
@@ -206,6 +211,8 @@ export class ActionRunner {
       if (action.abortSignal.aborted) {
         return;
       }
+
+      console.debug('updateAction failed', { actionId, action });
 
       this.#updateAction(actionId, { status: 'failed', error: 'Action failed' });
       logger.error(`[${action.type}]:Action failed\n\n`, error);

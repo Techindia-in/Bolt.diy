@@ -26,6 +26,7 @@ import { getTemplates, selectStarterTemplate } from '~/utils/selectStarterTempla
 import { logStore } from '~/lib/stores/logs';
 import { streamingState } from '~/lib/stores/streaming';
 import { filesToArtifacts } from '~/utils/fileUtils';
+import safeUseShortcuts from '../../hooks/useShortcuts';
 
 const toastAnimation = cssTransition({
   enter: 'animated fadeInRight',
@@ -113,7 +114,7 @@ interface ChatProps {
 
 export const ChatImpl = memo(
   ({ description, initialMessages, storeMessageHistory, importChat, exportChat }: ChatProps) => {
-    useShortcuts();
+    const shortcuts = safeUseShortcuts();
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [chatStarted, setChatStarted] = useState(initialMessages.length > 0);

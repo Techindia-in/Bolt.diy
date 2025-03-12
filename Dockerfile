@@ -4,11 +4,9 @@ FROM ${BASE} AS base
 WORKDIR /app
 
 # Install dependencies (this step is cached as long as the dependencies don't change)
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
-#RUN npm install -g corepack@latest
-
-#RUN corepack enable pnpm && pnpm install
+# Install pnpm and run install
 RUN npm install -g pnpm && pnpm install
 
 # Copy the rest of your app's source code
