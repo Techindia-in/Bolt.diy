@@ -153,18 +153,93 @@ ${props.summary}
 
   logger.info(`Sending llm call to ${provider.name} with model ${modelDetails.name}`);
 
-  // console.log(systemPrompt,processedMessages);
+  // Store original messages for reference
+  const originalMessages = [...messages];
+  const hasMultimodalContent = originalMessages.some((msg) => Array.isArray(msg.content));
 
-  return await _streamText({
-    model: provider.getModelInstance({
-      model: modelDetails.name,
-      serverEnv,
-      apiKeys,
-      providerSettings,
-    }),
-    system: systemPrompt,
-    maxTokens: dynamicMaxTokens,
-    messages: convertToCoreMessages(processedMessages as any),
-    ...options,
-  });
+  try {
+    // Format messages based on content type
+    let formattedMessages;
+
+    if (hasMultimodalContent) {
+      formattedMessages = originalMessages.map((msg) => ({
+        role: msg.role === 'system' || msg.role === 'user' || msg.role === 'assistant' ? msg.role : 'user',
+        content: Array.isArray(msg.content)
+          ? msg.content.map((item) => {
+              if (typeof item === 'string') {
+                return { type: 'text', text: item };
+              }
+
+              if (item && typeof item === 'object') {
+                if (item.type === 'image' && item.image) {
+                  return { type: 'image', image: item.image };
+                }
+
+                if (item.type === 'text') {
+                  return { type: 'text', text: item.text || '' };
+                }
+              }
+
+              return { type: 'text', text: String(item || '') };
+            })
+          : [{ type: 'text', text: typeof msg.content === 'string' ? msg.content : String(msg.content || '') }],
+      }));
+    } else {
+      // For text-only content, convert all messages to proper format
+      formattedMessages = processedMessages.map((msg) => ({
+        role: msg.role === 'system' || msg.role === 'user' || msg.role === 'assistant' ? msg.role : 'user',
+        content: [
+          {
+            type: 'text',
+            text: typeof msg.content === 'string' ? msg.content : String(msg.content || ''),
+          },
+        ],
+      }));
+    }
+
+    return await _streamText({
+      model: provider.getModelInstance({
+        model: modelDetails.name,
+        serverEnv,
+        apiKeys,
+        providerSettings,
+      }),
+      system: systemPrompt,
+      maxTokens: dynamicMaxTokens,
+      messages: formattedMessages as any,
+      ...options,
+    });
+  } catch (error: any) {
+    logger.error(`Error in streamText: ${error.message}`);
+
+    if (error.message && error.message.includes('messages must be an array of CoreMessage or UIMessage')) {
+      logger.warn('Message format error detected. Attempting fallback approach...');
+
+      // Final fallback approach with string conversion
+      try {
+        const stringMessages = processedMessages.map((msg) => ({
+          role: msg.role === 'system' || msg.role === 'user' || msg.role === 'assistant' ? msg.role : 'user',
+          content: typeof msg.content === 'string' ? msg.content : String(msg.content || ''),
+        }));
+
+        return await _streamText({
+          model: provider.getModelInstance({
+            model: modelDetails.name,
+            serverEnv,
+            apiKeys,
+            providerSettings,
+          }),
+          system: systemPrompt,
+          maxTokens: dynamicMaxTokens,
+          messages: convertToCoreMessages(stringMessages),
+          ...options,
+        });
+      } catch (fallbackError: any) {
+        logger.error(`Fallback approach also failed: ${fallbackError.message}`);
+        throw new Error(`Failed to process chat: ${fallbackError.message}`);
+      }
+    }
+
+    throw error;
+  }
 }
