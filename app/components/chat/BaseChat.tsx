@@ -39,6 +39,7 @@ import type { ActionRunner } from '~/lib/runtime/action-runner';
 import { LOCAL_PROVIDERS } from '~/lib/stores/settings';
 import { SupabaseChatAlert } from '~/components/chat/SupabaseAlert';
 import { SupabaseConnection } from './SupabaseConnection';
+import { WebSearch } from './WebSearch.client';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -78,6 +79,7 @@ interface BaseChatProps {
   clearDeployAlert?: () => void;
   data?: JSONValue[] | undefined;
   actionRunner?: ActionRunner;
+  onWebSearchResult?: (result: string) => void;
 }
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
@@ -118,6 +120,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       clearSupabaseAlert,
       data,
       actionRunner,
+      onWebSearchResult,
     },
     ref,
   ) => {
@@ -576,6 +579,14 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         <IconButton title="Upload file" className="transition-all" onClick={() => handleFileUpload()}>
                           <div className="i-ph:paperclip text-xl"></div>
                         </IconButton>
+                        <WebSearch
+                          onSearchResult={(result) => {
+                            if (onWebSearchResult) {
+                              onWebSearchResult(result);
+                            }
+                          }}
+                          disabled={isStreaming}
+                        />
                         <IconButton
                           title="Enhance prompt"
                           disabled={input.length === 0 || enhancingPrompt}
