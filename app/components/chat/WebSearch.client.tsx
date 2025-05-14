@@ -27,11 +27,13 @@ export const WebSearch = ({ onSearchResult, disabled = false }: WebSearchProps) 
   const [isSearching, setIsSearching] = useState(false);
 
   const formatSearchResult = (data: WebSearchResponse['data']) => {
-    if (!data) return '';
+    if (!data) {
+      return '';
+    }
 
     let result = `# Web Search Results from ${data.sourceUrl}\n\n`;
     result += `## ${data.title}\n\n`;
-    
+
     if (data.description) {
       result += `**Description:** ${data.description}\n\n`;
     }
@@ -40,14 +42,14 @@ export const WebSearch = ({ onSearchResult, disabled = false }: WebSearchProps) 
 
     if (data.codeBlocks.length > 0) {
       result += `## Code Examples\n\n`;
-      data.codeBlocks.forEach((block, index) => {
+      data.codeBlocks.forEach((block, _index) => {
         result += `\`\`\`\n${block}\n\`\`\`\n\n`;
       });
     }
 
     if (data.relevantLinks.length > 0) {
       result += `## Relevant Links\n\n`;
-      data.relevantLinks.forEach(link => {
+      data.relevantLinks.forEach((link) => {
         result += `- [${link.text}](${link.url})\n`;
       });
     }
@@ -56,12 +58,15 @@ export const WebSearch = ({ onSearchResult, disabled = false }: WebSearchProps) 
   };
 
   const handleWebSearch = async () => {
-    if (disabled) return;
+    if (disabled) {
+      return;
+    }
 
     try {
       setIsSearching(true);
+
       const url = window.prompt('Enter URL to search:');
-      
+
       if (!url) {
         setIsSearching(false);
         return;
@@ -75,7 +80,7 @@ export const WebSearch = ({ onSearchResult, disabled = false }: WebSearchProps) 
         body: formData,
       });
 
-      const data = await response.json() as WebSearchResponse;
+      const data = (await response.json()) as WebSearchResponse;
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to perform web search');
@@ -110,4 +115,4 @@ export const WebSearch = ({ onSearchResult, disabled = false }: WebSearchProps) 
       )}
     </IconButton>
   );
-}; 
+};
