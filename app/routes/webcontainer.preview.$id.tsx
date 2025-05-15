@@ -82,8 +82,8 @@ export default function WebContainerPreview() {
         ref={iframeRef}
         title="WebContainer Preview"
         className="w-full h-full border-none"
-        sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
-        allow="cross-origin-isolated"
+        sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin allow-downloads"
+        allow="cross-origin-isolated; fullscreen"
         loading="eager"
         onLoad={notifyPreviewReady}
       />

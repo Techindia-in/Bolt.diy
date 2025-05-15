@@ -263,6 +263,8 @@ export class PreviewsStore {
         previewId,
         timestamp,
       });
+    } else {
+      console.warn('[Preview] Failed to extract previewId from URL:', url);
     }
   }
 

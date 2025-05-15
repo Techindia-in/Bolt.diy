@@ -31,6 +31,12 @@ if (!import.meta.env.SSR) {
       })
       .then(async (webcontainer) => {
         webcontainerContext.loaded = true;
+        console.log('[WebContainer] Successfully booted');
+
+        // Log when servers are ready
+        webcontainer.on('server-ready', (port, url) => {
+          console.log('[WebContainer] Server ready on port:', port, 'URL:', url);
+        });
 
         const { workbenchStore } = await import('~/lib/stores/workbench');
 

@@ -6,6 +6,7 @@ import { PortDropdown } from './PortDropdown';
 import { ScreenshotSelector } from './ScreenshotSelector';
 import { expoUrlAtom } from '~/lib/stores/qrCodeStore';
 import { ExpoQrModal } from '~/components/workbench/ExpoQrModal';
+import type { PreviewInfo } from '~/lib/stores/previews';
 
 type ResizeSide = 'left' | 'right' | null;
 
@@ -56,16 +57,35 @@ export const Preview = memo(() => {
   const [isPortDropdownOpen, setIsPortDropdownOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const hasSelectedPreview = useRef(false);
+
   const previews = useStore(workbenchStore.previews);
   const activePreview = previews[activePreviewIndex];
   const [displayPath, setDisplayPath] = useState('/');
   const [iframeUrl, setIframeUrl] = useState<string | undefined>();
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
-  // Toggle between responsive mode and device mode
+  useEffect(() => {
+    if (!activePreview) {
+      setIframeUrl(undefined);
+      setDisplayPath('/');
+
+      return;
+    }
+
+    const { baseUrl } = activePreview;
+
+    // Set the iframe URL in the state
+    setIframeUrl(baseUrl);
+    setDisplayPath('/');
+
+    // Also directly update the iframe src for immediate effect
+    if (iframeRef.current) {
+      iframeRef.current.src = baseUrl;
+    }
+  }, [activePreview]);
+
   const [isDeviceModeOn, setIsDeviceModeOn] = useState(false);
 
-  // Use percentage for width
   const [widthPercent, setWidthPercent] = useState<number>(37.5);
   const [currentWidth, setCurrentWidth] = useState<number>(0);
 
@@ -78,7 +98,6 @@ export const Preview = memo(() => {
     pointerId: null as number | null,
   });
 
-  // Reduce scaling factor to make resizing less sensitive
   const SCALING_FACTOR = 1;
 
   const [isWindowSizeDropdownOpen, setIsWindowSizeDropdownOpen] = useState(false);
@@ -89,22 +108,13 @@ export const Preview = memo(() => {
   const expoUrl = useStore(expoUrlAtom);
   const [isExpoQrModalOpen, setIsExpoQrModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (!activePreview) {
-      setIframeUrl(undefined);
-      setDisplayPath('/');
-
-      return;
-    }
-
-    const { baseUrl } = activePreview;
-    setIframeUrl(baseUrl);
-    setDisplayPath('/');
-  }, [activePreview]);
-
   const findMinPortIndex = useCallback(
-    (minIndex: number, preview: { port: number }, index: number, array: { port: number }[]) => {
-      return preview.port < array[minIndex].port ? index : minIndex;
+    (minIndex: number, preview: PreviewInfo, index: number, array: PreviewInfo[]) => {
+      const currentPort = typeof preview.port === 'string' ? parseInt(preview.port, 10) : preview.port;
+      const minPort =
+        typeof array[minIndex].port === 'string' ? parseInt(array[minIndex].port, 10) : array[minIndex].port;
+
+      return currentPort < minPort ? index : minIndex;
     },
     [],
   );
@@ -454,11 +464,11 @@ export const Preview = memo(() => {
                   overflow: hidden;
                   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
                 }
-                
+
                 .device-container {
                   position: relative;
                 }
-                
+
                 .device-name {
                   position: absolute;
                   top: -30px;
@@ -468,7 +478,7 @@ export const Preview = memo(() => {
                   font-size: 14px;
                   color: #333;
                 }
-                
+
                 .device-frame {
                   position: relative;
                   border-radius: ${frameRadius};
@@ -477,7 +487,7 @@ export const Preview = memo(() => {
                   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
                   overflow: hidden;
                 }
-                
+
                 /* Notch */
                 .device-frame:before {
                   content: '';
@@ -491,7 +501,7 @@ export const Preview = memo(() => {
                   border-radius: 4px;
                   z-index: 2;
                 }
-                
+
                 /* Home button */
                 .device-frame:after {
                   content: '';
@@ -505,7 +515,7 @@ export const Preview = memo(() => {
                   border-radius: 50%;
                   z-index: 2;
                 }
-                
+
                 iframe {
                   border: none;
                   width: ${width}px;
@@ -940,8 +950,8 @@ export const Preview = memo(() => {
                         display: 'block',
                       }}
                       src={iframeUrl}
-                      sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
-                      allow="cross-origin-isolated"
+                      sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin allow-downloads"
+                      allow="cross-origin-isolated; fullscreen"
                     />
                   </div>
                 </div>
@@ -951,8 +961,8 @@ export const Preview = memo(() => {
                   title="preview"
                   className="border-none w-full h-full bg-bolt-elements-background-depth-1"
                   src={iframeUrl}
-                  sandbox="allow-scripts allow-forms allow-popups allow-modals allow-storage-access-by-user-activation allow-same-origin"
-                  allow="geolocation; ch-ua-full-version-list; cross-origin-isolated; screen-wake-lock; publickey-credentials-get; shared-storage-select-url; ch-ua-arch; bluetooth; compute-pressure; ch-prefers-reduced-transparency; deferred-fetch; usb; ch-save-data; publickey-credentials-create; shared-storage; deferred-fetch-minimal; run-ad-auction; ch-ua-form-factors; ch-downlink; otp-credentials; payment; ch-ua; ch-ua-model; ch-ect; autoplay; camera; private-state-token-issuance; accelerometer; ch-ua-platform-version; idle-detection; private-aggregation; interest-cohort; ch-viewport-height; local-fonts; ch-ua-platform; midi; ch-ua-full-version; xr-spatial-tracking; clipboard-read; gamepad; display-capture; keyboard-map; join-ad-interest-group; ch-width; ch-prefers-reduced-motion; browsing-topics; encrypted-media; gyroscope; serial; ch-rtt; ch-ua-mobile; window-management; unload; ch-dpr; ch-prefers-color-scheme; ch-ua-wow64; attribution-reporting; fullscreen; identity-credentials-get; private-state-token-redemption; hid; ch-ua-bitness; storage-access; sync-xhr; ch-device-memory; ch-viewport-width; picture-in-picture; magnetometer; clipboard-write; microphone"
+                  sandbox="allow-scripts allow-forms allow-popups allow-modals allow-same-origin allow-downloads"
+                  allow="cross-origin-isolated; fullscreen"
                 />
               )}
               <ScreenshotSelector

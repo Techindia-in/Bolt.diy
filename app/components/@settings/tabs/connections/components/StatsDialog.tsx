@@ -33,9 +33,11 @@ export function StatsDialog({ isOpen, onClose, onConfirm, stats, isLargeRepo }: 
                     <span className="i-ph:git-branch w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
-                      Repository Overview
-                    </h3>
+                    <Dialog.Title asChild>
+                      <h3 className="text-lg font-medium text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
+                        Repository Overview
+                      </h3>
+                    </Dialog.Title>
                     <p className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark">
                       Review repository details before importing
                     </p>

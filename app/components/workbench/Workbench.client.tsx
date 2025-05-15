@@ -24,6 +24,7 @@ import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
 import { PushToGitHubDialog } from '~/components/@settings/tabs/connections/components/PushToGitHubDialog';
+import { PushToGitLabDialog } from '~/components/@settings/tabs/connections/components/PushToGitLabDialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { usePreviewStore } from '~/lib/stores/previews';
 
@@ -283,11 +284,14 @@ export const Workbench = memo(
 
     const [isSyncing, setIsSyncing] = useState(false);
     const [isPushDialogOpen, setIsPushDialogOpen] = useState(false);
+    const [isPushGitLabDialogOpen, setIsPushGitLabDialogOpen] = useState(false);
     const [fileHistory, setFileHistory] = useState<Record<string, FileHistory>>({});
 
     // const modifiedFiles = Array.from(useStore(workbenchStore.unsavedFiles).keys());
 
-    const hasPreview = useStore(computed(workbenchStore.previews, (previews) => previews.length > 0));
+    const hasPreview = useStore(
+      computed(workbenchStore.previews, (previews) => Array.isArray(previews) && previews.length > 0),
+    );
     const showWorkbench = useStore(workbenchStore.showWorkbench);
     const selectedFile = useStore(workbenchStore.selectedFile);
     const currentDocument = useStore(workbenchStore.currentDocument);
@@ -448,6 +452,18 @@ export const Workbench = memo(
                               Push to GitHub
                             </div>
                           </DropdownMenu.Item>
+
+                          <DropdownMenu.Item
+                            className={classNames(
+                              'cursor-pointer flex items-center w-full px-4 py-2 text-sm text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive gap-2 rounded-md group relative',
+                            )}
+                            onClick={() => setIsPushGitLabDialogOpen(true)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="i-ph:gitlab-logo" />
+                              Push to GitLab
+                            </div>
+                          </DropdownMenu.Item>
                         </DropdownMenu.Content>
                       </DropdownMenu.Root>
                     </div>
@@ -497,12 +513,17 @@ export const Workbench = memo(
           <PushToGitHubDialog
             isOpen={isPushDialogOpen}
             onClose={() => setIsPushDialogOpen(false)}
-            onPush={async (repoName, username, token, isPrivate) => {
+            onPush={async (repoName, username, token, isPrivate, commitMessage) => {
               try {
                 console.log('Dialog onPush called with isPrivate =', isPrivate);
 
-                const commitMessage = prompt('Please enter a commit message:', 'Initial commit') || 'Initial commit';
-                const repoUrl = await workbenchStore.pushToGitHub(repoName, commitMessage, username, token, isPrivate);
+                const repoUrl = await workbenchStore.pushToGitHub(
+                  repoName,
+                  commitMessage || 'Initial commit',
+                  username,
+                  token,
+                  isPrivate,
+                );
 
                 if (updateChatMestaData && !metadata?.gitUrl) {
                   updateChatMestaData({
@@ -515,6 +536,52 @@ export const Workbench = memo(
               } catch (error) {
                 console.error('Error pushing to GitHub:', error);
                 toast.error('Failed to push to GitHub');
+                throw error;
+              }
+            }}
+          />
+          <PushToGitLabDialog
+            isOpen={isPushGitLabDialogOpen}
+            onClose={() => setIsPushGitLabDialogOpen(false)}
+            onPush={async (repoName, username, token, isPrivate, branchName, commitMessage) => {
+              try {
+                const repoUrl = await workbenchStore.pushToRepository(
+                  'gitlab',
+                  repoName,
+                  commitMessage || 'Initial commit',
+                  username,
+                  token,
+                  isPrivate,
+                  branchName,
+                );
+
+                if (updateChatMestaData && !metadata?.gitUrl) {
+                  updateChatMestaData({
+                    ...(metadata || {}),
+                    gitUrl: repoUrl,
+                  });
+                }
+
+                return repoUrl;
+              } catch (error) {
+                // Provide more specific error messages based on the error type
+                if (error instanceof Error) {
+                  if (error.message.includes('token') || error.message.includes('username')) {
+                    toast.error('Authentication failed. Please check your GitLab credentials.');
+                  } else if (error.message.includes('create')) {
+                    toast.error('Failed to create GitLab repository. Please check your permissions.');
+                  } else if (error.message.includes('commit')) {
+                    toast.error('Failed to commit files to GitLab. Please try again.');
+                  } else {
+                    toast.error(`Failed to push to GitLab: ${error.message}`);
+                  }
+                } else {
+                  toast.error('Failed to push to GitLab due to an unknown error');
+                }
+
+                // Log the error for debugging
+                console.error('GitLab push error:', error);
+
                 throw error;
               }
             }}

@@ -13,6 +13,7 @@ import { workbenchStore } from '~/lib/stores/workbench';
 import { extractRelativePath } from '~/utils/diff';
 import { formatSize } from '~/utils/formatSize';
 import type { FileMap, File } from '~/lib/stores/files';
+import { usePreviewStore } from '~/lib/stores/previews';
 
 // UI Components
 import { Badge, EmptyState, StatusIndicator, SearchInput } from '~/components/ui';
@@ -20,7 +21,13 @@ import { Badge, EmptyState, StatusIndicator, SearchInput } from '~/components/ui
 interface PushToGitHubDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onPush: (repoName: string, username?: string, token?: string, isPrivate?: boolean) => Promise<string>;
+  onPush: (
+    repoName: string,
+    username?: string,
+    token?: string,
+    isPrivate?: boolean,
+    commitMessage?: string,
+  ) => Promise<string>;
 }
 
 interface GitHubRepo {
@@ -48,6 +55,7 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [createdRepoUrl, setCreatedRepoUrl] = useState('');
   const [pushedFiles, setPushedFiles] = useState<{ path: string; size: number }[]>([]);
+  const [commitMessage, setCommitMessage] = useState('Initial commit');
 
   // Load GitHub connection on mount
   useEffect(() => {
@@ -199,6 +207,11 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
       return;
     }
 
+    if (!commitMessage.trim()) {
+      toast.error('Commit message is required');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -236,7 +249,7 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
         }
       }
 
-      const repoUrl = await onPush(repoName, connection.user.login, connection.token, isPrivate);
+      const repoUrl = await onPush(repoName, connection.user.login, connection.token, isPrivate, commitMessage);
       setCreatedRepoUrl(repoUrl);
 
       // Get list of pushed files
@@ -249,6 +262,11 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
         }));
 
       setPushedFiles(filesList);
+
+      // Force refresh of previews after push
+      const previewStore = usePreviewStore();
+      previewStore.refreshAllPreviews();
+
       setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error pushing to GitHub:', error);
@@ -291,15 +309,12 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                         <div className="i-ph:check-circle w-5 h-5" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-medium text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
+                        <Dialog.Title className="text-lg font-medium text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
                           Successfully pushed to GitHub
-                        </h3>
-                        <p
-                          id="success-dialog-description"
-                          className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark"
-                        >
+                        </Dialog.Title>
+                        <Dialog.Description className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark">
                           Your code is now available on GitHub
-                        </p>
+                        </Dialog.Description>
                       </div>
                     </div>
                     <Dialog.Close asChild>
@@ -501,12 +516,9 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                     <Dialog.Title className="text-lg font-medium text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark">
                       Push to GitHub
                     </Dialog.Title>
-                    <p
-                      id="push-dialog-description"
-                      className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark"
-                    >
+                    <Dialog.Description className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark">
                       Push your code to a new or existing GitHub repository
-                    </p>
+                    </Dialog.Description>
                   </div>
                   <Dialog.Close asChild>
                     <button
@@ -671,6 +683,29 @@ export function PushToGitHubDialog({ isOpen, onClose, onPush }: PushToGitHubDial
                     <p className="text-xs text-bolt-elements-textTertiary dark:text-bolt-elements-textTertiary-dark mt-2 ml-6">
                       Private repositories are only visible to you and people you share them with
                     </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="commitMessage"
+                      className="text-sm text-bolt-elements-textSecondary dark:text-bolt-elements-textSecondary-dark"
+                    >
+                      Commit Message
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-bolt-elements-textTertiary dark:text-bolt-elements-textTertiary-dark">
+                        <span className="i-ph:pencil-line w-4 h-4" />
+                      </div>
+                      <input
+                        id="commitMessage"
+                        type="text"
+                        value={commitMessage}
+                        onChange={(e) => setCommitMessage(e.target.value)}
+                        placeholder="Initial commit"
+                        className="w-full pl-10 px-4 py-2 rounded-lg bg-bolt-elements-background-depth-2 dark:bg-bolt-elements-background-depth-3 border border-bolt-elements-borderColor dark:border-bolt-elements-borderColor-dark text-bolt-elements-textPrimary dark:text-bolt-elements-textPrimary-dark placeholder-bolt-elements-textTertiary dark:placeholder-bolt-elements-textTertiary-dark focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className="pt-4 flex gap-2">

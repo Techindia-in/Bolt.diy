@@ -7,6 +7,7 @@ import VercelConnection from './VercelConnection';
 
 // Use React.lazy for dynamic imports
 const GitHubConnection = React.lazy(() => import('./GithubConnection'));
+const GitlabConnection = React.lazy(() => import('./GitlabConnection'));
 const NetlifyConnection = React.lazy(() => import('./NetlifyConnection'));
 
 // Loading fallback component
@@ -152,6 +153,9 @@ export default function ConnectionsTab() {
       <div className="grid grid-cols-1 gap-6">
         <Suspense fallback={<LoadingFallback />}>
           <GitHubConnection />
+        </Suspense>
+        <Suspense fallback={<LoadingFallback />}>
+          <GitlabConnection />
         </Suspense>
         <Suspense fallback={<LoadingFallback />}>
           <NetlifyConnection />
