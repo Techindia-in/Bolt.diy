@@ -12,35 +12,7 @@ export default class AnthropicProvider extends BaseProvider {
     apiTokenKey: 'ANTHROPIC_API_KEY',
   };
 
-  staticModels: ModelInfo[] = [
-    {
-      name: 'claude-3-7-sonnet-20250219',
-      label: 'Claude 3.7 Sonnet',
-      provider: 'Anthropic',
-      maxTokenAllowed: 8000,
-    },
-    {
-      name: 'claude-3-5-sonnet-latest',
-      label: 'Claude 3.5 Sonnet (new)',
-      provider: 'Anthropic',
-      maxTokenAllowed: 8000,
-    },
-    {
-      name: 'claude-3-5-sonnet-20240620',
-      label: 'Claude 3.5 Sonnet (old)',
-      provider: 'Anthropic',
-      maxTokenAllowed: 8000,
-    },
-    {
-      name: 'claude-3-5-haiku-latest',
-      label: 'Claude 3.5 Haiku (new)',
-      provider: 'Anthropic',
-      maxTokenAllowed: 8000,
-    },
-    { name: 'claude-3-opus-latest', label: 'Claude 3 Opus', provider: 'Anthropic', maxTokenAllowed: 8000 },
-    { name: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet', provider: 'Anthropic', maxTokenAllowed: 8000 },
-    { name: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku', provider: 'Anthropic', maxTokenAllowed: 8000 },
-  ];
+  staticModels: ModelInfo[] = [];
 
   async getDynamicModels(
     apiKeys?: Record<string, string>,
@@ -63,6 +35,7 @@ export default class AnthropicProvider extends BaseProvider {
       headers: {
         'x-api-key': `${apiKey}`,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'output-128k-2025-02-19',
       },
     });
 
@@ -75,7 +48,7 @@ export default class AnthropicProvider extends BaseProvider {
       name: m.id,
       label: `${m.display_name}`,
       provider: this.name,
-      maxTokenAllowed: 32000,
+      maxTokenAllowed: 128000,
     }));
   }
 
